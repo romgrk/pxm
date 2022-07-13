@@ -19,7 +19,7 @@ class Task {
     const argv = parseArgsStringToArgv(description.command)
     const command = argv.shift()
 
-    const args = [name, command, argv, {}]
+    const args = [name, command, argv, description.options]
     console.log('[task]', args)
 
     const task = new Task(...args)
@@ -33,6 +33,13 @@ class Task {
     if (!task)
       throw new Error('Task not running')
     task.kill()
+  }
+
+  static stopAll(name) {
+    Object.keys(activeTasks).forEach(name => {
+      const task = activeTasks[name]
+      task.kill()
+    })
   }
 
   constructor(name, command, args, options) {
@@ -54,8 +61,8 @@ class Task {
     })
   }
 
-  stop() {
-    this.process.kill()
+  kill(signal) {
+    this.process.kill(signal)
   }
 }
 
