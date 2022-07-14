@@ -9,7 +9,7 @@ const util = require('util')
 const cp = require('child_process')
 
 const config = require('./config')
-const { SOCKETFILE } = require('./utils')
+const { SOCKETFILE, wait } = require('./utils')
 
 util.inspect.defaultOptions =  {
   depth: 5,
@@ -49,14 +49,26 @@ async function daemonStart() {
   const out = fs.openSync(config.LOG_FILE, 'w')
   const err = fs.openSync(config.LOG_FILE, 'w')
 
+  let buffer = ''
+  let didClose = false
+
   const child = cp.spawn('node', [path.join(__dirname, 'daemon.js')], {
     detached: true,
     stdio: ['ignore', out, err]
   })
-
   child.unref()
 
-  return true
+  // child.stdout.on('data', data => { buffer += data.toString() })
+  // child.stderr.on('data', data => { buffer += data.toString() })
+  child.on('close', () => { didClose = true })
+
+  await wait(1000)
+
+  if (didClose) {
+    console.log({ ok: false, message: buffer })
+  } else {
+    console.log({ ok: true, message: buffer })
+  }
 }
 
 

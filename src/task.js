@@ -92,11 +92,11 @@ class Task {
 
   status() {
     return {
-      name:    task.args[0],
-      command: task.args[1],
-      args:    task.args[2],
-      options: task.args[3],
-      createdAt: task.createdAt,
+      name:    this.args[0],
+      command: this.args[1],
+      args:    this.args[2],
+      options: this.args[3],
+      createdAt: this.createdAt,
     }
   }
 
