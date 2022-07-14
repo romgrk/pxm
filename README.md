@@ -38,7 +38,7 @@ pxm set tunnel-to-remote 'ssh -L localhost:8080:localhost:8080 -N some-remote-ho
 # Start the task
 pxm start tunnel-to-remote
 
-# Start the task
+# List running commands
 pxm list
 
 ```
