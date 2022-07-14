@@ -10,10 +10,12 @@ const activeTasks = {}
 
 class Task {
   static list() {
-    return Object.entries(activeTasks).map(([name, task]) => [
-      ...task.args,
-      task.createdAt,
-    ])
+    return Object.entries(activeTasks).map(([name, task]) => ({
+      name:    task.args[0],
+      command: task.args[1],
+      args:    task.args[2],
+      options: task.args[3],
+    }))
   }
 
   static start(name) {
