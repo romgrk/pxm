@@ -2,6 +2,7 @@
  * task.js
  */
 
+const notifier = require('node-notifier')
 const { spawn } = require('node:child_process')
 const { parseArgsStringToArgv } = require('string-argv')
 const config = require('./config')
@@ -70,6 +71,7 @@ class Task {
     this.stdout = ''
     this.stderr = ''
     this.buffer = ''
+    this.didRequestKill = false
 
     this.process.stdout.on('data', (data) => {
       this.stdout += data.toString()
@@ -85,6 +87,11 @@ class Task {
       console.log(`child process exited with code ${code}`)
       delete activeTasks[name]
       this.stoppedAt = new Date()
+      if (!this.didRequestKill)
+        notifier.notify({
+          title: 'pxm',
+          message: `Task "${this.args[0]}" stopped.`,
+        })
     })
   }
 
@@ -99,6 +106,7 @@ class Task {
   }
 
   kill(signal) {
+    this.didRequestKill = true
     this.process.kill(signal)
   }
 }

@@ -16,6 +16,7 @@
     "commander": "^9.3.0",
     "env-paths": "^3.0.0",
     "mkdirp": "^1.0.4",
+    "node-notifier": "^10.0.1",
     "string-argv": "^0.3.1"
   }
 }
