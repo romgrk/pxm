@@ -18,13 +18,15 @@ const commands = {
   stop: task.stop,
   restart: task.restart,
   status: task.status,
+  logs: task.logs,
 
   get: config.get,
   set: config.set,
 
   running: () => true,
   shutdown: () => {
-    setTimeout(() => process.exit(0), 500)
+    task.stopAll()
+    setTimeout(() => process.exit(0), 5000)
     return true
   },
 }

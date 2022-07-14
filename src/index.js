@@ -20,6 +20,7 @@ program
 
 program
     .command('set')
+    .option('-c, --cwd')
     .argument('<name>')
     .argument('<command>')
     .action(client.set)
@@ -47,5 +48,9 @@ program
     .command('status')
     .argument('<name>')
     .action(client.status)
+program
+    .command('logs')
+    .argument('<name>')
+    .action(client.logs)
 
 program.parse()

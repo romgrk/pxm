@@ -5,11 +5,15 @@
 const fs = require('fs')
 const net = require('net')
 const path = require('path')
+const util = require('util')
 const cp = require('child_process')
 
 const config = require('./config')
 const { SOCKETFILE } = require('./utils')
 
+util.inspect.defaultOptions =  {
+  depth: 5,
+}
 
 module.exports = {
   daemonStart: daemonStart,
@@ -22,10 +26,23 @@ module.exports = {
   stop:  (name)          => { send({ command: 'stop', args: [name] }) },
   restart: (name)        => { send({ command: 'restart', args: [name] }) },
   status: (name)         => { send({ command: 'status', args: [name] }) },
+  logs: (name)           => { send({ command: 'logs', args: [name] }) },
 
   // Config
   get: wrap((name) => { return config.get(name) }),
-  set: wrap((name, command) => { config.set(name, { command }); return command }),
+  set: wrap((name, command, opts) => {
+
+    const task = {
+      command,
+      options: {
+        cwd: opts.cwd ? process.cwd() : undefined,
+      },
+    }
+
+    config.set(name, task)
+
+    return task
+  }),
 }
 
 async function daemonStart() {

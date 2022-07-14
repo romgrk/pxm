@@ -10,12 +10,7 @@ const activeTasks = {}
 
 class Task {
   static list() {
-    return Object.entries(activeTasks).map(([name, task]) => ({
-      name:    task.args[0],
-      command: task.args[1],
-      args:    task.args[2],
-      options: task.args[3],
-    }))
+    return Object.values(activeTasks).map(task => task.status())
   }
 
   static start(name) {
@@ -42,6 +37,15 @@ class Task {
     if (!task)
       throw new Error('Task not running')
     task.kill()
+    return true
+  }
+
+  static status() {
+    const task = activeTasks[name]
+    if (!task)
+      throw new Error('Task not running')
+    task.kill()
+    return task.status()
   }
 
   static logs(name) {
@@ -57,6 +61,7 @@ class Task {
       const task = activeTasks[name]
       task.kill('SIGKILL')
     })
+    return true
   }
 
   constructor(name, command, args, options) {
@@ -83,6 +88,16 @@ class Task {
       delete activeTasks[name]
       this.stoppedAt = new Date()
     })
+  }
+
+  status() {
+    return {
+      name:    task.args[0],
+      command: task.args[1],
+      args:    task.args[2],
+      options: task.args[3],
+      createdAt: task.createdAt,
+    }
   }
 
   kill(signal) {
