@@ -9,6 +9,13 @@ const config = require('./config')
 const activeTasks = {}
 
 class Task {
+  static list() {
+    return Object.entries(activeTasks).map(([name, task]) => [
+      ...task.args,
+      task.createdAt,
+    ])
+  }
+
   static start(name) {
     if (name in activeTasks) {
       throw new Error('Task already running')
@@ -35,6 +42,14 @@ class Task {
     task.kill()
   }
 
+  static logs(name) {
+    const task = activeTasks[name]
+    if (!task)
+      throw new Error('Task not running')
+    task.kill()
+    return task.buffer
+  }
+
   static stopAll(name) {
     Object.keys(activeTasks).forEach(name => {
       const task = activeTasks[name]
@@ -43,21 +58,28 @@ class Task {
   }
 
   constructor(name, command, args, options) {
+    this.args = [name, command, args, options]
+    this.startedAt = new Date()
+    this.stoppedAt = null
     this.process = spawn(command, args, options)
     this.stdout = ''
     this.stderr = ''
+    this.buffer = ''
 
     this.process.stdout.on('data', (data) => {
       this.stdout += data.toString()
+      this.buffer += data.toString()
     })
 
     this.process.stderr.on('data', (data) => {
       this.stderr += data.toString()
+      this.buffer += data.toString()
     })
 
     this.process.on('close', (code) => {
       console.log(`child process exited with code ${code}`)
       delete activeTasks[name]
+      this.stoppedAt = new Date()
     })
   }
 
