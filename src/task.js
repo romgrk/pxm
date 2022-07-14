@@ -38,7 +38,7 @@ class Task {
     return true
   }
 
-  static status() {
+  static status(name) {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
