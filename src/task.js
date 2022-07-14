@@ -53,7 +53,7 @@ class Task {
   static stopAll(name) {
     Object.keys(activeTasks).forEach(name => {
       const task = activeTasks[name]
-      task.kill()
+      task.kill('SIGKILL')
     })
   }
 
