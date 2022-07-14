@@ -17,9 +17,7 @@ class Task {
     if (name in activeTasks) {
       throw new Error('Task already running')
     }
-    console.log(config)
     const description = config.get(name)
-    console.log(description)
     const argv = parseArgsStringToArgv(description.command)
     const command = argv.shift()
 
