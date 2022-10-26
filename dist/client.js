@@ -48,19 +48,24 @@ const utils_1 = require("./utils");
 util_1.default.inspect.defaultOptions = {
     depth: 5,
 };
-exports.default = {
+const commands = {
     daemonStart: daemonStart,
-    daemonStop: () => { send({ command: 'shutdown', args: [] }); },
-    daemonStatus: () => { send({ command: 'running', args: [] }); },
+    daemonStop: () => send({ command: 'daemonStop', args: [] })
+        .catch(() => ({ ok: true, message: true })),
+    daemonStatus: () => send({ command: 'daemonStatus', args: [] })
+        .catch(() => ({ ok: false, message: false })),
     // Tasks
-    list: () => { send({ command: 'list', args: [] }); },
-    start: (name) => { send({ command: 'start', args: [name] }); },
-    stop: (name) => { send({ command: 'stop', args: [name] }); },
-    restart: (name) => { send({ command: 'restart', args: [name] }); },
-    status: (name) => { send({ command: 'status', args: [name] }); },
-    logs: (name) => { send({ command: 'logs', args: [name] }); },
+    list: () => startAndSend({ command: 'list', args: [] }),
+    start: (name) => startAndSend({ command: 'start', args: [name] }),
+    stop: (name) => startAndSend({ command: 'stop', args: [name] }),
+    restart: (name) => startAndSend({ command: 'restart', args: [name] }),
+    status: (name) => startAndSend({ command: 'status', args: [name] }),
+    logs: (name) => startAndSend({ command: 'logs', args: [name] }),
     // Config
-    get: wrap((name) => { return config.get(name); }),
+    get: wrap((name) => {
+        const task = config.get(name);
+        return Object.assign({ name }, task);
+    }),
     set: wrap((name, command, opts) => {
         const task = {
             command,
@@ -69,29 +74,31 @@ exports.default = {
             },
         };
         config.set(name, task);
-        return task;
+        return Object.assign({ name }, task);
     }),
 };
+exports.default = commands;
 function daemonStart() {
     return __awaiter(this, void 0, void 0, function* () {
         const out = fs_1.default.openSync(config.LOG_FILE, 'w');
         const err = fs_1.default.openSync(config.LOG_FILE, 'w');
-        let buffer = '';
         let didClose = false;
-        const child = child_process_1.default.spawn('node', [path_1.default.join(__dirname, 'daemon.js')], {
+        const child = child_process_1.default.spawn('node', [path_1.default.join(__dirname, '../dist/daemon.js')], {
             detached: true,
             stdio: ['ignore', out, err]
         });
         child.unref();
+        // let buffer = ''
         // child.stdout.on('data', data => { buffer += data.toString() })
         // child.stderr.on('data', data => { buffer += data.toString() })
         child.on('close', () => { didClose = true; });
-        yield (0, utils_1.wait)(1000);
+        yield (0, utils_1.wait)(500);
+        const buffer = fs_1.default.readFileSync(config.LOG_FILE).toString();
         if (didClose) {
-            console.log({ ok: false, message: buffer });
+            return { ok: false, message: buffer };
         }
         else {
-            console.log({ ok: true, message: buffer });
+            return { ok: true, message: buffer };
         }
     });
 }
@@ -99,30 +106,46 @@ function daemonStart() {
 function wrap(fn) {
     return (...args) => __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log({ ok: true, message: yield fn(...args) });
+            return { ok: true, message: yield fn(...args) };
         }
         catch (e) {
-            console.error({ ok: false, message: e.message });
+            return { ok: false, message: e.message };
         }
     });
 }
 function send(content) {
-    try {
-        const client = net_1.default.createConnection(utils_1.SOCKETFILE);
-        client.on('connect', () => {
-            client.write(JSON.stringify(content));
-            client.end();
+    return __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve, reject) => {
+            try {
+                const client = net_1.default.createConnection(utils_1.SOCKETFILE);
+                client.on('connect', () => {
+                    client.write(JSON.stringify(content));
+                    client.end();
+                });
+                client.on('data', data => {
+                    const response = JSON.parse(data.toString());
+                    resolve(response);
+                });
+                client.on('close', () => {
+                    resolve(undefined);
+                });
+                client.on('error', error => {
+                    reject(error);
+                });
+            }
+            catch (e) {
+                reject(e);
+            }
         });
-        client.on('data', data => {
-            const response = JSON.parse(data.toString());
-            console.log(response);
-        });
-        client.on('error', error => {
-            console.error(error);
-        });
-    }
-    catch (e) {
-        console.error(e);
-    }
+    });
+}
+function startAndSend(content) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const result = yield commands.daemonStatus();
+        const isRunning = result.message;
+        if (!isRunning)
+            yield commands.daemonStart();
+        return send(content);
+    });
 }
 //# sourceMappingURL=client.js.map

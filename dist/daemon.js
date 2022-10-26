@@ -22,6 +22,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -40,16 +49,16 @@ const commands = {
     logs: task_1.default.logs,
     get: config.get,
     set: config.set,
-    running: () => true,
-    shutdown: () => {
+    daemonStatus: () => true,
+    daemonStop: () => {
         task_1.default.stopAll();
         setTimeout(() => process.exit(0), 5000);
         return true;
     },
 };
 if (require.main === module)
-    server();
-function server(...args) {
+    daemon();
+function daemon() {
     const server = new net_1.default.Server();
     server.listen(utils_1.SOCKETFILE, () => {
         console.log(`Listening on ${utils_1.SOCKETFILE}`);
@@ -77,12 +86,12 @@ function server(...args) {
     });
     server.on('connection', socket => {
         console.log('[connection] new');
-        socket.on('data', chunk => {
+        socket.on('data', (chunk) => __awaiter(this, void 0, void 0, function* () {
             const content = chunk.toString();
             console.log(`[connection] data: ${content}`);
             try {
                 const request = JSON.parse(content);
-                const result = commands[request.command](...request.args);
+                const result = yield commands[request.command](...request.args);
                 socket.write(JSON.stringify({ ok: true, message: result }));
             }
             catch (e) {
@@ -93,7 +102,7 @@ function server(...args) {
                     content,
                 }));
             }
-        });
+        }));
         socket.on('end', () => {
             console.log('[connection] closed');
         });

@@ -15,23 +15,40 @@ util.inspect.defaultOptions =  {
   depth: 5,
 }
 
-export default {
+type CommandCall = {
+  command: string,
+  args: any[],
+}
+
+type Message<T = any> =
+  Promise<{
+    ok: boolean,
+    message: T,
+  }>
+
+const commands = {
   daemonStart: daemonStart,
-  daemonStop:   () => { send({ command: 'shutdown', args: [] }) },
-  daemonStatus: () => { send({ command: 'running',  args: [] }) },
+  daemonStop:   () =>
+    send({ command: 'daemonStop', args: [] })
+    .catch(() => ({ ok: true, message: true })) as Message<boolean>,
+  daemonStatus: () =>
+    send({ command: 'daemonStatus',  args: [] })
+    .catch(() => ({ ok: false, message: false })) as Message<boolean>,
 
   // Tasks
-  list:  ()               => { send({ command: 'list',    args: [] }) },
-  start: (name: string)   => { send({ command: 'start',   args: [name] }) },
-  stop:  (name: string)   => { send({ command: 'stop',    args: [name] }) },
-  restart: (name: string) => { send({ command: 'restart', args: [name] }) },
-  status: (name: string)  => { send({ command: 'status',  args: [name] }) },
-  logs: (name: string)    => { send({ command: 'logs',    args: [name] }) },
+  list:  ()               => startAndSend({ command: 'list',    args: [] }),
+  start: (name: string)   => startAndSend({ command: 'start',   args: [name] }),
+  stop:  (name: string)   => startAndSend({ command: 'stop',    args: [name] }),
+  restart: (name: string) => startAndSend({ command: 'restart', args: [name] }),
+  status: (name: string)  => startAndSend({ command: 'status',  args: [name] }),
+  logs: (name: string)    => startAndSend({ command: 'logs',    args: [name] }),
 
   // Config
-  get: wrap((name: string) => { return config.get(name) }),
+  get: wrap((name: string) => {
+    const task = config.get(name)
+    return { name, ...task }
+  }),
   set: wrap((name: string, command: string, opts: SpawnOptions) => {
-
     const task = {
       command,
       options: {
@@ -41,33 +58,36 @@ export default {
 
     config.set(name, task)
 
-    return task
+    return { name, ...task }
   }),
 }
+
+export default commands
 
 async function daemonStart() {
   const out = fs.openSync(config.LOG_FILE, 'w')
   const err = fs.openSync(config.LOG_FILE, 'w')
 
-  let buffer = ''
   let didClose = false
 
-  const child = cp.spawn('node', [path.join(__dirname, 'daemon.js')], {
+  const child = cp.spawn('node', [path.join(__dirname, '../dist/daemon.js')], {
     detached: true,
     stdio: ['ignore', out, err]
   })
   child.unref()
 
+  // let buffer = ''
   // child.stdout.on('data', data => { buffer += data.toString() })
   // child.stderr.on('data', data => { buffer += data.toString() })
   child.on('close', () => { didClose = true })
 
-  await wait(1000)
+  await wait(500)
 
+  const buffer = fs.readFileSync(config.LOG_FILE).toString()
   if (didClose) {
-    console.log({ ok: false, message: buffer })
+    return { ok: false, message: buffer }
   } else {
-    console.log({ ok: true, message: buffer })
+    return { ok: true, message: buffer }
   }
 }
 
@@ -77,31 +97,45 @@ async function daemonStart() {
 function wrap(fn) {
   return async (...args) => {
     try {
-      console.log({ ok: true, message: await fn(...args) })
+      return { ok: true, message: await fn(...args) }
     } catch(e) {
-      console.error({ ok: false, message: e.message })
+      return { ok: false, message: e.message }
     }
   }
 }
 
-function send(content) {
-  try {
-    const client = net.createConnection(SOCKETFILE)
+async function send(content: CommandCall) {
+  return new Promise((resolve, reject) => {
+    try {
+      const client = net.createConnection(SOCKETFILE)
 
-    client.on('connect', () => {
-      client.write(JSON.stringify(content))
-      client.end()
-    })
+      client.on('connect', () => {
+        client.write(JSON.stringify(content))
+        client.end()
+      })
 
-    client.on('data', data => {
-      const response = JSON.parse(data.toString())
-      console.log(response)
-    })
+      client.on('data', data => {
+        const response = JSON.parse(data.toString())
+        resolve(response)
+      })
 
-    client.on('error', error => {
-      console.error(error)
-    })
-  } catch(e) {
-    console.error(e)
-  }
+      client.on('close', () => {
+        resolve(undefined)
+      })
+
+      client.on('error', error => {
+        reject(error)
+      })
+    } catch(e) {
+      reject(e)
+    }
+  })
+}
+
+async function startAndSend(content: CommandCall) {
+  const result = await commands.daemonStatus()
+  const isRunning = result.message
+  if (!isRunning)
+    await commands.daemonStart()
+  return send(content)
 }

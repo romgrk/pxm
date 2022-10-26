@@ -1,19 +1,26 @@
 import notifier from 'node-notifier'
 import { spawn, ChildProcess, SpawnOptions } from 'node:child_process'
 import { parseArgsStringToArgv } from 'string-argv'
+import ControllablePromise from 'controllable-promise'
 import * as config from './config'
 
 const activeTasks = {} as Record<string, Task>
+
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'ENOENT')
+    return
+  throw err
+})
 
 export default class Task {
   static list() {
     return Object.values(activeTasks).map(task => task.status())
   }
 
-  static start(name: string) {
-    if (name in activeTasks) {
+  static async start(name: string) {
+    if (name in activeTasks)
       throw new Error('Task already running')
-    }
+
     const description = config.get(name)
     const argv = parseArgsStringToArgv(description.command)
     const command = argv.shift()
@@ -23,6 +30,7 @@ export default class Task {
 
     const task = new Task(name, command, argv, description.options)
     activeTasks[name] = task
+    await task.didStart
 
     return { command, status: 'spawned' }
   }
@@ -35,12 +43,13 @@ export default class Task {
     return true
   }
 
-  static restart(name: string) {
+  static async restart(name: string) {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
-    task.kill()
+    await task.kill()
     Task.start(name)
+    await activeTasks[name].didStart
     return true
   }
 
@@ -68,12 +77,15 @@ export default class Task {
 
   args: any[]
   startedAt: Date
-  stoppedAt: Date
+  stoppedAt: Date | null
   process: ChildProcess
   stdout: string
   stderr: string
   buffer: string
+  canNotify: boolean
   didRequestKill: boolean
+  didStart: ControllablePromise<void>
+  didEnd: ControllablePromise<number>
 
   constructor(
     name: string,
@@ -88,7 +100,10 @@ export default class Task {
     this.stdout = ''
     this.stderr = ''
     this.buffer = ''
+    this.canNotify = false
     this.didRequestKill = false
+    this.didStart = new ControllablePromise()
+    this.didEnd = new ControllablePromise()
 
     this.process.stdout.on('data', (data) => {
       this.stdout += data.toString()
@@ -104,12 +119,27 @@ export default class Task {
       console.log(`child process exited with code ${code}`)
       delete activeTasks[name]
       this.stoppedAt = new Date()
-      if (!this.didRequestKill)
+      this.didEnd.resolve(code)
+      if (!this.didRequestKill && this.canNotify)
         notifier.notify({
           title: 'pxm',
-          message: `Task "${this.args[0]}" stopped.`,
+          message: `Task "${this.args[0]}" stopped.\nMessage: ${this.buffer.slice(0, 512)}`,
         })
     })
+
+    this.process.on('error', err => {
+      this.didStart.reject(err)
+      this.didEnd.reject(err)
+    })
+
+    setTimeout(() => {
+      if (this.stoppedAt === null) {
+        this.didStart.resolve()
+        this.canNotify = true
+      } else {
+        this.didStart.reject(new Error(this.stderr))
+      }
+    }, 500)
   }
 
   status() {
@@ -125,5 +155,6 @@ export default class Task {
   kill(signal?: number | NodeJS.Signals) {
     this.didRequestKill = true
     this.process.kill(signal)
+    return this.didEnd
   }
 }

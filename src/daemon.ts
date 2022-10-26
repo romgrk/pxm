@@ -15,8 +15,8 @@ const commands = {
   get: config.get,
   set: config.set,
 
-  running: () => true,
-  shutdown: () => {
+  daemonStatus: () => true,
+  daemonStop: () => {
     task.stopAll()
     setTimeout(() => process.exit(0), 5000)
     return true
@@ -24,10 +24,9 @@ const commands = {
 }
 
 if (require.main === module)
-  server()
+  daemon()
 
-
-function server() {
+function daemon() {
   const server = new net.Server()
 
   server.listen(SOCKETFILE, () => {
@@ -59,14 +58,14 @@ function server() {
   server.on('connection', socket => {
     console.log('[connection] new')
 
-    socket.on('data', chunk => {
+    socket.on('data', async chunk => {
       const content = chunk.toString()
 
       console.log(`[connection] data: ${content}`)
 
       try {
         const request = JSON.parse(content)
-        const result = commands[request.command](...request.args)
+        const result = await commands[request.command](...request.args)
         socket.write(JSON.stringify({ ok: true, message: result }))
       } catch(e) {
         socket.write(JSON.stringify({
