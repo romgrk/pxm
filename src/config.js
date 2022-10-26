@@ -12,7 +12,7 @@ const paths = {
     process.platform === 'linux' ?
       path.join(os.homedir(), '.config/pxm') :
     process.platform === 'darwin' ?
-      path.join(os.homedir(), 'Library/Preferences//pxm') :
+      path.join(os.homedir(), 'Library/Preferences/pxm') :
       process.exit(2)
 }
 mkdirp.sync(paths.config)
