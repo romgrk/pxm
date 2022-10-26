@@ -41,6 +41,11 @@ const string_argv_1 = require("string-argv");
 const controllable_promise_1 = __importDefault(require("controllable-promise"));
 const config = __importStar(require("./config"));
 const activeTasks = {};
+process.on('uncaughtException', (err) => {
+    if (err.code === 'ENOENT')
+        return;
+    throw err;
+});
 class Task {
     constructor(name, command, args, options) {
         this.args = [name, command, args, options];
@@ -50,6 +55,7 @@ class Task {
         this.stdout = '';
         this.stderr = '';
         this.buffer = '';
+        this.canNotify = false;
         this.didRequestKill = false;
         this.didStart = new controllable_promise_1.default();
         this.didEnd = new controllable_promise_1.default();
@@ -66,7 +72,7 @@ class Task {
             delete activeTasks[name];
             this.stoppedAt = new Date();
             this.didEnd.resolve(code);
-            if (!this.didRequestKill)
+            if (!this.didRequestKill && this.canNotify)
                 node_notifier_1.default.notify({
                     title: 'pxm',
                     message: `Task "${this.args[0]}" stopped.\nMessage: ${this.buffer.slice(0, 512)}`,
@@ -77,11 +83,14 @@ class Task {
             this.didEnd.reject(err);
         });
         setTimeout(() => {
-            if (this.stoppedAt === null)
+            if (this.stoppedAt === null) {
                 this.didStart.resolve();
-            else
+                this.canNotify = true;
+            }
+            else {
                 this.didStart.reject(new Error(this.stderr));
-        });
+            }
+        }, 500);
     }
     static list() {
         return Object.values(activeTasks).map(task => task.status());
@@ -95,14 +104,9 @@ class Task {
             const command = argv.shift();
             const args = [name, command, argv, description.options];
             console.log('[task]', args);
-            try {
-                const task = new Task(name, command, argv, description.options);
-                activeTasks[name] = task;
-                yield task.didStart;
-            }
-            catch (e) {
-                console.log('ERROR', e);
-            }
+            const task = new Task(name, command, argv, description.options);
+            activeTasks[name] = task;
+            yield task.didStart;
             return { command, status: 'spawned' };
         });
     }
