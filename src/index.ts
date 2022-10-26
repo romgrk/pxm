@@ -1,12 +1,6 @@
 #!/usr/bin/env node
-/*
- * index.js
- */
-
-const { program } = require('commander')
-
-const daemon = require('./daemon')
-const client = require('./client')
+import { program } from 'commander'
+import client from './client'
 
 program
     .command('daemon-start')

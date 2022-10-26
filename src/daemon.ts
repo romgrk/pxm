@@ -1,16 +1,8 @@
-/*
- * daemon.js
- */
-
-const os = require('os')
-const fs = require('fs')
-const net = require('net')
-const path = require('path')
-
-const task = require('./task')
-const client = require('./client')
-const config = require('./config')
-const { SOCKETFILE } = require('./utils')
+import fs from 'fs'
+import net from 'net'
+import task from './task'
+import * as config from './config'
+import { SOCKETFILE } from './utils'
 
 const commands = {
   list: task.list,
@@ -35,18 +27,18 @@ if (require.main === module)
   server()
 
 
-function server(...args) {
+function server() {
   const server = new net.Server()
 
   server.listen(SOCKETFILE, () => {
     console.log(`Listening on ${SOCKETFILE}`)
   })
 
-  server.on('error', e => {
+  server.on('error', (e: NodeJS.ErrnoException) => {
     if (e.code == 'EADDRINUSE') {
       const clientSocket = new net.Socket()
 
-      clientSocket.on('error', e => { // handle error trying to talk to server
+      clientSocket.on('error', (e: NodeJS.ErrnoException) => { // handle error trying to talk to server
         if (e.code == 'ECONNREFUSED') {  // No other server listening
           fs.unlinkSync(SOCKETFILE)
           server.listen(SOCKETFILE, () => { // 'listening' listener

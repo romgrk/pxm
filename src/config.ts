@@ -1,11 +1,7 @@
-/*
- * config.js
- */
-
-const os = require('os')
-const fs = require('fs')
-const path = require('path')
-const mkdirp = require('mkdirp')
+import os from 'os'
+import fs from 'fs'
+import path from 'path'
+import mkdirp from 'mkdirp'
 
 const paths = {
   config:
@@ -17,8 +13,8 @@ const paths = {
 }
 mkdirp.sync(paths.config)
 
-const CONFIG_FILE = path.join(paths.config, 'config.json')
-const LOG_FILE    = path.join(paths.config, 'out.log')
+export const CONFIG_FILE = path.join(paths.config, 'config.json')
+export const LOG_FILE    = path.join(paths.config, 'out.log')
 
 // Format:
 //
@@ -35,7 +31,7 @@ const DEFAULT_CONFIG = {
   tasks: {},
 }
 
-function read() {
+export function read() {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_FILE).toString())
   } catch(e) {
@@ -45,29 +41,20 @@ function read() {
   }
 }
 
-function write(content) {
+export function write(content) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(content))
 }
 
-function set(task, value) {
+export function set(task, value) {
   const config = read()
   config.tasks[task] = value
   write(config)
 }
 
-function get(task) {
+export function get(task) {
   const config = read()
   const result = config.tasks[task]
   if (result === undefined)
     throw new Error('No task with that name')
   return result
-}
-
-module.exports = {
-  get,
-  set,
-  read,
-  write,
-  LOG_FILE,
-  CONFIG_FILE,
 }

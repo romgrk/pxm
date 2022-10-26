@@ -1,20 +1,16 @@
-/*
- * task.js
- */
+import notifier from 'node-notifier'
+import { spawn, ChildProcess, SpawnOptions } from 'node:child_process'
+import { parseArgsStringToArgv } from 'string-argv'
+import * as config from './config'
 
-const notifier = require('node-notifier')
-const { spawn } = require('node:child_process')
-const { parseArgsStringToArgv } = require('string-argv')
-const config = require('./config')
+const activeTasks = {} as Record<string, Task>
 
-const activeTasks = {}
-
-class Task {
+export default class Task {
   static list() {
     return Object.values(activeTasks).map(task => task.status())
   }
 
-  static start(name) {
+  static start(name: string) {
     if (name in activeTasks) {
       throw new Error('Task already running')
     }
@@ -25,13 +21,13 @@ class Task {
     const args = [name, command, argv, description.options]
     console.log('[task]', args)
 
-    const task = new Task(...args)
+    const task = new Task(name, command, argv, description.options)
     activeTasks[name] = task
 
     return { command, status: 'spawned' }
   }
 
-  static stop(name) {
+  static stop(name: string) {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
@@ -39,21 +35,30 @@ class Task {
     return true
   }
 
-  static status(name) {
+  static restart(name: string) {
+    const task = activeTasks[name]
+    if (!task)
+      throw new Error('Task not running')
+    task.kill()
+    Task.start(name)
+    return true
+  }
+
+  static status(name: string) {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
     return task.status()
   }
 
-  static logs(name) {
+  static logs(name: string) {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
     return task.buffer
   }
 
-  static stopAll(name) {
+  static stopAll() {
     Object.keys(activeTasks).forEach(name => {
       const task = activeTasks[name]
       task.kill('SIGKILL')
@@ -61,7 +66,21 @@ class Task {
     return true
   }
 
-  constructor(name, command, args, options) {
+  args: any[]
+  startedAt: Date
+  stoppedAt: Date
+  process: ChildProcess
+  stdout: string
+  stderr: string
+  buffer: string
+  didRequestKill: boolean
+
+  constructor(
+    name: string,
+    command: string,
+    args: string[],
+    options: SpawnOptions
+  ) {
     this.args = [name, command, args, options]
     this.startedAt = new Date()
     this.stoppedAt = null
@@ -99,14 +118,12 @@ class Task {
       command: this.args[1],
       args:    this.args[2],
       options: this.args[3],
-      createdAt: this.createdAt,
+      startedAt: this.startedAt,
     }
   }
 
-  kill(signal) {
+  kill(signal?: number | NodeJS.Signals) {
     this.didRequestKill = true
     this.process.kill(signal)
   }
 }
-
-module.exports = Task

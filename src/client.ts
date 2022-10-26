@@ -2,35 +2,35 @@
  * start.js
  */
 
-const fs = require('fs')
-const net = require('net')
-const path = require('path')
-const util = require('util')
-const cp = require('child_process')
+import fs from 'fs'
+import net from 'net'
+import path from 'path'
+import util from 'util'
+import cp, { SpawnOptions } from 'child_process'
 
-const config = require('./config')
-const { SOCKETFILE, wait } = require('./utils')
+import * as config from './config'
+import { SOCKETFILE, wait } from './utils'
 
 util.inspect.defaultOptions =  {
   depth: 5,
 }
 
-module.exports = {
+export default {
   daemonStart: daemonStart,
   daemonStop:   () => { send({ command: 'shutdown', args: [] }) },
   daemonStatus: () => { send({ command: 'running', args: [] }) },
 
   // Tasks
   list:  ()              => { send({ command: 'list', args: [] }) },
-  start: (name)          => { send({ command: 'start', args: [name] }) },
-  stop:  (name)          => { send({ command: 'stop', args: [name] }) },
-  restart: (name)        => { send({ command: 'restart', args: [name] }) },
-  status: (name)         => { send({ command: 'status', args: [name] }) },
-  logs: (name)           => { send({ command: 'logs', args: [name] }) },
+  start: (name: string)          => { send({ command: 'start', args: [name] }) },
+  stop:  (name: string)          => { send({ command: 'stop', args: [name] }) },
+  restart: (name: string)        => { send({ command: 'restart', args: [name] }) },
+  status: (name: string)         => { send({ command: 'status', args: [name] }) },
+  logs: (name: string)           => { send({ command: 'logs', args: [name] }) },
 
   // Config
-  get: wrap((name) => { return config.get(name) }),
-  set: wrap((name, command, opts) => {
+  get: wrap((name: string) => { return config.get(name) }),
+  set: wrap((name: string, command: string, opts: SpawnOptions) => {
 
     const task = {
       command,
