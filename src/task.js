@@ -43,7 +43,6 @@ class Task {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
-    task.kill()
     return task.status()
   }
 
@@ -51,7 +50,6 @@ class Task {
     const task = activeTasks[name]
     if (!task)
       throw new Error('Task not running')
-    task.kill()
     return task.buffer
   }
 
