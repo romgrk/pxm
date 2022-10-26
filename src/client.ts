@@ -18,15 +18,15 @@ util.inspect.defaultOptions =  {
 export default {
   daemonStart: daemonStart,
   daemonStop:   () => { send({ command: 'shutdown', args: [] }) },
-  daemonStatus: () => { send({ command: 'running', args: [] }) },
+  daemonStatus: () => { send({ command: 'running',  args: [] }) },
 
   // Tasks
-  list:  ()              => { send({ command: 'list', args: [] }) },
-  start: (name: string)          => { send({ command: 'start', args: [name] }) },
-  stop:  (name: string)          => { send({ command: 'stop', args: [name] }) },
-  restart: (name: string)        => { send({ command: 'restart', args: [name] }) },
-  status: (name: string)         => { send({ command: 'status', args: [name] }) },
-  logs: (name: string)           => { send({ command: 'logs', args: [name] }) },
+  list:  ()               => { send({ command: 'list',    args: [] }) },
+  start: (name: string)   => { send({ command: 'start',   args: [name] }) },
+  stop:  (name: string)   => { send({ command: 'stop',    args: [name] }) },
+  restart: (name: string) => { send({ command: 'restart', args: [name] }) },
+  status: (name: string)  => { send({ command: 'status',  args: [name] }) },
+  logs: (name: string)    => { send({ command: 'logs',    args: [name] }) },
 
   // Config
   get: wrap((name: string) => { return config.get(name) }),

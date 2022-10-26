@@ -14,7 +14,7 @@ program
 
 program
     .command('set')
-    .option('-c, --cwd')
+    .option('-c, --cwd', 'Use the current directory as the command\'s working directory.')
     .argument('<name>')
     .argument('<command>')
     .action(client.set)
